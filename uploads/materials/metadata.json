@@ -1,6 +1,34 @@
 {
   "items": [
     {
+      "id": "m-aceb9b7e-1f43-4253-b055-3788f3463a99",
+      "classId": "c-1780222736549",
+      "title": "link",
+      "type": "link",
+      "url": "https://online.uom.lk/login/index.php?loginredirect=1",
+      "uploadedDate": "2026-05-31",
+      "uploaderTeacherId": "6a1c0a559c41502f4772abf1"
+    },
+    {
+      "id": "m-78dc69f6-9cc3-486f-91fe-8cab29f58490",
+      "classId": "c-1780222697205",
+      "title": "link test",
+      "type": "link",
+      "url": "www.linkedin.com/in/iduwara-rajakaruna-0a0a98279",
+      "uploadedDate": "2026-05-31",
+      "uploaderTeacherId": "6a1c0a559c41502f4772abf1"
+    },
+    {
+      "id": "m-e767aeb2-3f36-4f9b-985b-4d162d700295",
+      "classId": "c-1780222736549",
+      "title": "video test",
+      "type": "video",
+      "url": "http://localhost:8000/uploads/materials/m-e767aeb2-3f36-4f9b-985b-4d162d700295-IMG_2839.MOV",
+      "uploadedDate": "2026-05-31",
+      "size": "12.2 MB",
+      "uploaderTeacherId": "6a1c0a559c41502f4772abf1"
+    },
+    {
       "id": "m-36f2a09d-ca39-4f2a-9aee-8b4728143169",
       "classId": "c-1780211430048",
       "title": "note",
