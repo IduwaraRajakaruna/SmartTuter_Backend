@@ -5,7 +5,35 @@ const jwt = require("jsonwebtoken");
 exports.register = async (req, res) => {
     try {
 
-        const { fullName, email, password, role } = req.body;
+        const {
+            fullName,
+            email,
+            password,
+            role,
+            subject,
+            qualification,
+            experience
+        } = req.body;
+
+        if (!fullName || !email || !password || !role) {
+            return res.status(400).json({
+                message: "Missing required fields"
+            });
+        }
+
+        if (!['student', 'teacher'].includes(role)) {
+            return res.status(400).json({
+                message: "Invalid role"
+            });
+        }
+
+        if (role === 'teacher') {
+            if (!subject || !qualification || experience === undefined || experience === null) {
+                return res.status(400).json({
+                    message: "Missing teacher details"
+                });
+            }
+        }
 
         const existingUser = await User.findOne({ email });
 
@@ -17,17 +45,39 @@ exports.register = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        const normalizedExperience = role === 'teacher'
+            ? Number(experience)
+            : undefined;
+
+        if (role === 'teacher' && Number.isNaN(normalizedExperience)) {
+            return res.status(400).json({
+                message: "Invalid experience value"
+            });
+        }
+
         const user = await User.create({
             fullName,
             email,
             password: hashedPassword,
-            role
+            role,
+            status: role === 'teacher' ? 'pending' : 'active',
+            subject: role === 'teacher' ? subject : undefined,
+            qualification: role === 'teacher' ? qualification : undefined,
+            experience: role === 'teacher' ? normalizedExperience : undefined
         });
 
         res.status(201).json({
             success: true,
-            message: "User created successfully",
-            user
+            message: role === 'teacher'
+                ? "Teacher registration submitted for approval"
+                : "User created successfully",
+            user: {
+                id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                role: user.role,
+                status: user.status
+            }
         });
 
     } catch(error) {
@@ -65,6 +115,20 @@ exports.login = async (req, res) => {
             });
         }
 
+        if (user.role === 'teacher' && user.status !== 'active') {
+            return res.status(403).json({
+                message: user.status === 'pending'
+                    ? "Teacher account pending approval"
+                    : "Teacher account inactive"
+            });
+        }
+
+        if (user.status === 'inactive') {
+            return res.status(403).json({
+                message: "Account inactive"
+            });
+        }
+
         const token = jwt.sign(
             {
                 id: user._id,
@@ -83,7 +147,16 @@ exports.login = async (req, res) => {
                 id: user._id,
                 fullName: user.fullName,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                status: user.status,
+                subject: user.subject,
+                qualification: user.qualification,
+                experience: user.experience,
+                phone: user.phone,
+                bio: user.bio,
+                hourlyRate: user.hourlyRate,
+                zoomLink: user.zoomLink,
+                joinedDate: user.createdAt
             }
         });
 
