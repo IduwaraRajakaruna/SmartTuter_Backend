@@ -1,4 +1,6 @@
 const User = require("../models/user.model");
+const TeacherProfile = require("../models/teacher-profile.model");
+const StudentProfile = require("../models/student-profile.model");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -60,11 +62,22 @@ exports.register = async (req, res) => {
             email,
             password: hashedPassword,
             role,
-            status: role === 'teacher' ? 'pending' : 'active',
-            subject: role === 'teacher' ? subject : undefined,
-            qualification: role === 'teacher' ? qualification : undefined,
-            experience: role === 'teacher' ? normalizedExperience : undefined
+            status: 'active'
         });
+
+        if (role === 'teacher') {
+            await TeacherProfile.create({
+                user: user._id,
+                subject,
+                qualification,
+                experience: normalizedExperience,
+                approvalStatus: 'pending'
+            });
+        } else {
+            await StudentProfile.create({
+                user: user._id
+            });
+        }
 
         res.status(201).json({
             success: true,
@@ -76,7 +89,7 @@ exports.register = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
-                status: user.status
+                status: role === 'teacher' ? 'pending' : user.status
             }
         });
 
@@ -115,18 +128,27 @@ exports.login = async (req, res) => {
             });
         }
 
-        if (user.role === 'teacher' && user.status !== 'active') {
-            return res.status(403).json({
-                message: user.status === 'pending'
-                    ? "Teacher account pending approval"
-                    : "Teacher account inactive"
-            });
-        }
-
         if (user.status === 'inactive') {
             return res.status(403).json({
                 message: "Account inactive"
             });
+        }
+
+        let teacherProfile = null;
+        let studentProfile = null;
+
+        if (user.role === 'teacher') {
+            teacherProfile = await TeacherProfile.findOne({ user: user._id });
+
+            if (!teacherProfile || teacherProfile.approvalStatus !== 'active') {
+                return res.status(403).json({
+                    message: teacherProfile?.approvalStatus === 'pending'
+                        ? "Teacher account pending approval"
+                        : "Teacher account inactive"
+                });
+            }
+        } else if (user.role === 'student') {
+            studentProfile = await StudentProfile.findOne({ user: user._id });
         }
 
         const token = jwt.sign(
@@ -148,14 +170,16 @@ exports.login = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
-                status: user.status,
-                subject: user.subject,
-                qualification: user.qualification,
-                experience: user.experience,
-                phone: user.phone,
-                bio: user.bio,
-                hourlyRate: user.hourlyRate,
-                zoomLink: user.zoomLink,
+                status: user.role === 'teacher'
+                    ? teacherProfile?.approvalStatus
+                    : user.status,
+                subject: teacherProfile?.subject,
+                qualification: teacherProfile?.qualification,
+                experience: teacherProfile?.experience,
+                phone: studentProfile?.phone || teacherProfile?.phone,
+                bio: teacherProfile?.bio,
+                hourlyRate: teacherProfile?.hourlyRate,
+                zoomLink: teacherProfile?.zoomLink,
                 joinedDate: user.createdAt
             }
         });

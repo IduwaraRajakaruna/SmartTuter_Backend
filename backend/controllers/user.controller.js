@@ -1,18 +1,22 @@
 const User = require("../models/user.model");
+const TeacherProfile = require("../models/teacher-profile.model");
+const StudentProfile = require("../models/student-profile.model");
 
-const mapUserProfile = (user) => ({
+const mapUserProfile = (user, teacherProfile, studentProfile) => ({
     id: user._id,
     fullName: user.fullName,
     email: user.email,
     role: user.role,
-    status: user.status,
-    subject: user.subject,
-    qualification: user.qualification,
-    experience: user.experience,
-    phone: user.phone,
-    bio: user.bio,
-    hourlyRate: user.hourlyRate,
-    zoomLink: user.zoomLink,
+    status: user.role === "teacher"
+        ? teacherProfile?.approvalStatus
+        : user.status,
+    subject: teacherProfile?.subject,
+    qualification: teacherProfile?.qualification,
+    experience: teacherProfile?.experience,
+    phone: studentProfile?.phone || teacherProfile?.phone,
+    bio: teacherProfile?.bio,
+    hourlyRate: teacherProfile?.hourlyRate,
+    zoomLink: teacherProfile?.zoomLink,
     joinedDate: user.createdAt
 });
 
@@ -26,9 +30,18 @@ exports.getProfile = async (req, res) => {
             });
         }
 
+        let teacherProfile = null;
+        let studentProfile = null;
+
+        if (user.role === "teacher") {
+            teacherProfile = await TeacherProfile.findOne({ user: user._id });
+        } else if (user.role === "student") {
+            studentProfile = await StudentProfile.findOne({ user: user._id });
+        }
+
         return res.status(200).json({
             success: true,
-            user: mapUserProfile(user)
+            user: mapUserProfile(user, teacherProfile, studentProfile)
         });
     } catch (error) {
         return res.status(500).json({
@@ -51,17 +64,21 @@ exports.updateProfile = async (req, res) => {
             user.fullName = req.body.fullName;
         }
 
-        if (req.body.phone !== undefined) {
-            user.phone = req.body.phone;
-        }
-
         if (user.role === "teacher") {
+            const teacherProfile = await TeacherProfile.findOne({ user: user._id });
+
+            if (!teacherProfile) {
+                return res.status(404).json({
+                    message: "Teacher profile not found"
+                });
+            }
+
             if (req.body.subject !== undefined) {
-                user.subject = req.body.subject;
+                teacherProfile.subject = req.body.subject;
             }
 
             if (req.body.qualification !== undefined) {
-                user.qualification = req.body.qualification;
+                teacherProfile.qualification = req.body.qualification;
             }
 
             if (req.body.experience !== undefined) {
@@ -71,11 +88,11 @@ exports.updateProfile = async (req, res) => {
                         message: "Invalid experience value"
                     });
                 }
-                user.experience = normalizedExperience;
+                teacherProfile.experience = normalizedExperience;
             }
 
             if (req.body.bio !== undefined) {
-                user.bio = req.body.bio;
+                teacherProfile.bio = req.body.bio;
             }
 
             if (req.body.hourlyRate !== undefined) {
@@ -85,19 +102,48 @@ exports.updateProfile = async (req, res) => {
                         message: "Invalid hourly rate"
                     });
                 }
-                user.hourlyRate = normalizedRate;
+                teacherProfile.hourlyRate = normalizedRate;
             }
 
             if (req.body.zoomLink !== undefined) {
-                user.zoomLink = req.body.zoomLink;
+                teacherProfile.zoomLink = req.body.zoomLink;
             }
+
+            if (req.body.phone !== undefined) {
+                teacherProfile.phone = req.body.phone;
+            }
+
+            await teacherProfile.save();
+        } else if (user.role === "student") {
+            const studentProfile = await StudentProfile.findOne({ user: user._id });
+
+            if (!studentProfile) {
+                return res.status(404).json({
+                    message: "Student profile not found"
+                });
+            }
+
+            if (req.body.phone !== undefined) {
+                studentProfile.phone = req.body.phone;
+            }
+
+            await studentProfile.save();
         }
 
         await user.save();
 
+        let teacherProfile = null;
+        let studentProfile = null;
+
+        if (user.role === "teacher") {
+            teacherProfile = await TeacherProfile.findOne({ user: user._id });
+        } else if (user.role === "student") {
+            studentProfile = await StudentProfile.findOne({ user: user._id });
+        }
+
         return res.status(200).json({
             success: true,
-            user: mapUserProfile(user)
+            user: mapUserProfile(user, teacherProfile, studentProfile)
         });
     } catch (error) {
         return res.status(500).json({

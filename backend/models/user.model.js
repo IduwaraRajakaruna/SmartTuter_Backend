@@ -26,40 +26,8 @@ const userSchema = new mongoose.Schema(
 
     status: {
         type: String,
-        enum: ["pending", "active", "inactive"],
+        enum: ["active", "inactive"],
         default: "active"
-    },
-
-    subject: {
-        type: String
-    },
-
-    qualification: {
-        type: String
-    },
-
-    experience: {
-        type: Number
-    },
-
-    phone: {
-        type: String
-    },
-
-    bio: {
-        type: String
-    },
-
-    hourlyRate: {
-        type: Number
-    },
-
-    zoomLink: {
-        type: String
-    },
-
-    rejectionReason: {
-        type: String
     }
 },
 {
