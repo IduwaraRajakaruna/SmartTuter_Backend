@@ -70,36 +70,22 @@ exports.createReview = async (req, res) => {
 
     const teacherName = teacherProfile.user?.fullName || teacherProfile.subject || 'Teacher';
 
-    const review = await Review.findOneAndUpdate(
-      {
-        studentId,
-        teacherId,
-        classId,
-      },
-      {
-        studentName: student.fullName,
-        teacherName,
-        className,
-        rating: normalizedRating,
-        comment: comment.trim(),
-      },
-      {
-        new: true,
-        upsert: true,
-        runValidators: true,
-        setDefaultsOnInsert: true,
-      }
-    );
+    const review = await Review.create({
+      studentId,
+      studentName: student.fullName,
+      teacherId,
+      teacherName,
+      classId,
+      className,
+      rating: normalizedRating,
+      comment: comment.trim(),
+    });
 
     return res.status(201).json({
       success: true,
       review: mapReview(review),
     });
   } catch (error) {
-    if (error?.code === 11000) {
-      return res.status(409).json({ message: 'You already reviewed this class' });
-    }
-
     return res.status(500).json({ message: error.message });
   }
 };
