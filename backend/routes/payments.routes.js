@@ -9,6 +9,7 @@ const {
     getPaymentById,
     getPaymentsByStudent,
     updatePaymentStatus,
+    getAdminPaymentAnalytics,
 } = require('../controllers/payments.controller');
 
 // IMPORTANT: The static route /student/:studentId MUST be declared before
@@ -16,6 +17,10 @@ const {
 
 // POST /api/payments/create — initiate a new payment record
 router.post('/create', auth, authorizeRoles('student', 'admin'), createPayment);
+
+// GET /api/payments/admin/analytics — admin-only: revenue, all payments, recent payments
+// IMPORTANT: This static route MUST be before /:id to prevent "admin" matching as id.
+router.get('/admin/analytics', auth, authorizeRoles('admin'), getAdminPaymentAnalytics);
 
 // GET /api/payments/student/:studentId — list all payments for a student
 router.get('/student/:studentId', auth, authorizeRoles('student', 'admin'), getPaymentsByStudent);

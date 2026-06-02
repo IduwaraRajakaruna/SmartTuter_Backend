@@ -7,19 +7,19 @@ const { confirmEnrollment } = require('../services/enrollment.service');
 // Helper: safe payment payload (never expose internal DB fields blindly)
 // ---------------------------------------------------------------------------
 const buildPaymentPayload = (doc) => ({
-    id:            doc._id,
-    studentId:     doc.studentId,
-    classId:       doc.classId,
-    amount:        doc.amount,
-    currency:      doc.currency,
-    status:        doc.status,
-    orderId:       doc.orderId,
+    id: doc._id,
+    studentId: doc.studentId,
+    classId: doc.classId,
+    amount: doc.amount,
+    currency: doc.currency,
+    status: doc.status,
+    orderId: doc.orderId,
     // TODO(security): transactionId is included here for internal/admin use.
     // Consider omitting or masking it for student-facing responses if it
     // carries sensitive gateway data.
     transactionId: doc.transactionId,
-    createdAt:     doc.createdAt,
-    paidAt:        doc.paidAt,
+    createdAt: doc.createdAt,
+    paidAt: doc.paidAt,
 });
 
 // ---------------------------------------------------------------------------
@@ -27,7 +27,7 @@ const buildPaymentPayload = (doc) => ({
 // Format: ORD-<timestamp>-<8 random hex chars>
 // ---------------------------------------------------------------------------
 const generateOrderId = () => {
-    const ts  = Date.now();
+    const ts = Date.now();
     const rnd = crypto.randomBytes(4).toString('hex').toUpperCase();
     return `ORD-${ts}-${rnd}`;
 };
@@ -58,7 +58,7 @@ exports.createPayment = async (req, res) => {
 
         // --- Authorization: only students (or admin) may create payments ---
         const requestingRole = req.user?.role;
-        const requestingId   = req.user?.id;
+        const requestingId = req.user?.id;
 
         if (requestingRole !== 'student' && requestingRole !== 'admin') {
             return res.status(403).json({ message: 'Access denied' });
@@ -78,12 +78,12 @@ exports.createPayment = async (req, res) => {
         const payment = await Payment.create({
             studentId,
             classId,
-            amount:    parsedAmount,
-            currency:  currency || 'LKR',
-            status:    'initiated',
+            amount: parsedAmount,
+            currency: currency || 'LKR',
+            status: 'initiated',
             orderId,
             transactionId: null,
-            paidAt:    null,
+            paidAt: null,
         });
 
         return res.status(201).json({
@@ -118,7 +118,7 @@ exports.getPaymentById = async (req, res) => {
 
         // Authorization: students may only view their own payment records
         const requestingRole = req.user?.role;
-        const requestingId   = req.user?.id;
+        const requestingId = req.user?.id;
 
         if (
             requestingRole !== 'admin' &&
@@ -151,7 +151,7 @@ exports.getPaymentsByStudent = async (req, res) => {
 
         // Authorization check
         const requestingRole = req.user?.role;
-        const requestingId   = req.user?.id;
+        const requestingId = req.user?.id;
 
         if (requestingRole !== 'admin' && studentId !== requestingId) {
             return res.status(403).json({ message: 'Access denied' });
@@ -263,5 +263,66 @@ exports.updatePaymentStatus = async (req, res) => {
     } catch (error) {
         console.error('[payments] updatePaymentStatus error:', error.message);
         return res.status(500).json({ message: 'Failed to update payment status' });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/payments/admin/analytics
+// Admin-only: returns total revenue, all payments (with student/class names),
+// and the 5 most recent payments for the dashboard widget.
+// ---------------------------------------------------------------------------
+exports.getAdminPaymentAnalytics = async (req, res) => {
+    try {
+        // --- Authorization: admin only ---
+        if (req.user?.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        // Fetch all payments, newest first, populated with student name and class title
+        const payments = await Payment.find({})
+            .populate('studentId', 'fullName email')
+            .populate('classId', 'title subject')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Build safe response payload — omit transactionId to avoid
+        // leaking sensitive gateway identifiers to the admin UI.
+        // TODO(security): transactionId is intentionally excluded here.
+        // If admin needs it for reconciliation, add a separate detail endpoint.
+        const allPayments = payments.map(p => ({
+            id: p._id,
+            studentName: p.studentId?.fullName || 'Unknown Student',
+            studentEmail: p.studentId?.email || '',
+            className: p.classId?.title || 'Unknown Class',
+            classSubject: p.classId?.subject || '',
+            amount: p.amount,
+            currency: p.currency,
+            status: p.status,
+            orderId: p.orderId,
+            createdAt: p.createdAt,
+            paidAt: p.paidAt,
+        }));
+
+        // Total revenue = sum of completed payment amounts
+        const totalRevenue = allPayments
+            .filter(p => p.status === 'completed')
+            .reduce((sum, p) => sum + p.amount, 0);
+
+        // Recent payments: first 5 (already sorted newest-first)
+        const recentPayments = allPayments.slice(0, 5);
+
+        return res.status(200).json({
+            success: true,
+            totalRevenue,
+            totalPayments: allPayments.length,
+            completedCount: allPayments.filter(p => p.status === 'completed').length,
+            pendingCount: allPayments.filter(p => p.status === 'pending' || p.status === 'initiated').length,
+            failedCount: allPayments.filter(p => p.status === 'failed').length,
+            recentPayments,
+            allPayments,
+        });
+    } catch (error) {
+        console.error('[payments] getAdminPaymentAnalytics error:', error.message);
+        return res.status(500).json({ message: 'Failed to retrieve payment analytics' });
     }
 };
