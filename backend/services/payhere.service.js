@@ -45,16 +45,13 @@ const getPayHereCheckoutUrl = () =>
 //              MD5(merchant_secret).toUpperCase()).toUpperCase()
 //
 // @param {string} orderId
-// @param {number} amount
+// @param {string|number} formattedAmount
 // @param {string} currency  e.g. 'LKR'
 // @returns {string} uppercase MD5 hash
 // ---------------------------------------------------------------------------
-const generateCheckoutHash = (orderId, amount, currency) => {
-    const merchantId     = getMerchantId();
+const generateCheckoutHash = (orderId, formattedAmount, currency) => {
+    const merchantId = getMerchantId();
     const merchantSecret = getMerchantSecret();
-
-    // Amount must be formatted to exactly 2 decimal places
-    const formattedAmount = Number(amount).toFixed(2);
 
     const secretHash = crypto
         .createHash('md5')
@@ -83,38 +80,42 @@ const generateCheckoutHash = (orderId, amount, currency) => {
 // ---------------------------------------------------------------------------
 const buildCheckoutPayload = (payment, student) => {
     const merchantId = getMerchantId();
-    const orderId    = payment.orderId;
-    const amount     = payment.amount;
-    const currency   = payment.currency || 'LKR';
+    const orderId = payment.orderId;
+    const amount = payment.amount;
+    const currency = payment.currency || 'LKR';
 
-    const hash = generateCheckoutHash(orderId, amount, currency);
+    // Format amount exactly once to ensure hash and payload match perfectly
+    const formattedAmount = Number(amount).toFixed(2);
+
+    const hash = generateCheckoutHash(orderId, formattedAmount, currency);
 
     // Split fullName into first/last for PayHere (best-effort)
     const nameParts = (student.fullName || '').trim().split(' ');
     const firstName = nameParts[0] || 'Student';
-    const lastName  = nameParts.slice(1).join(' ') || '-';
+    const lastName = nameParts.slice(1).join(' ') || '-';
 
     return {
         checkoutUrl: getPayHereCheckoutUrl(),
         payload: {
-            merchant_id:  merchantId,
-            return_url:   process.env.PAYHERE_RETURN_URL,
-            cancel_url:   process.env.PAYHERE_CANCEL_URL,
-            notify_url:   process.env.PAYHERE_NOTIFY_URL,
-            order_id:     orderId,
-            items:        `Class Payment - ${payment.classId}`,
-            currency:     currency,
-            amount:       Number(amount).toFixed(2),
-            first_name:   firstName,
-            last_name:    lastName,
-            email:        student.email,
-            phone:        student.phone || '0000000000',
-            address:      'N/A',
-            city:         'Colombo',
-            country:      'Sri Lanka',
+            sandbox: process.env.NODE_ENV !== 'production',
+            merchant_id: merchantId,
+            return_url: process.env.PAYHERE_RETURN_URL,
+            cancel_url: process.env.PAYHERE_CANCEL_URL,
+            notify_url: process.env.PAYHERE_NOTIFY_URL,
+            order_id: orderId,
+            items: `Class Payment - ${payment.classId}`,
+            currency: currency,
+            amount: formattedAmount,
+            first_name: firstName,
+            last_name: lastName,
+            email: student.email,
+            phone: student.phone || '0000000000',
+            address: 'N/A',
+            city: 'Colombo',
+            country: 'Sri Lanka',
             // custom_1 carries our MongoDB payment _id so the notify handler
             // can look up the correct payment record without trusting order_id alone.
-            custom_1:     payment._id.toString(),
+            custom_1: payment._id.toString(),
             hash,
         }
     };
@@ -180,12 +181,12 @@ const verifyNotifyHash = (body) => {
 const mapPayHereStatusCode = (statusCode) => {
     const code = parseInt(statusCode, 10);
     switch (code) {
-        case  2:  return 'completed';
-        case  0:  return 'pending';
-        case -1:  return 'cancelled';
-        case -2:  return 'failed';
-        case -3:  return 'failed';   // chargedback
-        default:  return null;       // unknown — reject
+        case 2: return 'completed';
+        case 0: return 'pending';
+        case -1: return 'cancelled';
+        case -2: return 'failed';
+        case -3: return 'failed';   // chargedback
+        default: return null;       // unknown — reject
     }
 };
 
