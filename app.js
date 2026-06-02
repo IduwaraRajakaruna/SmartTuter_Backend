@@ -10,6 +10,8 @@ const materialsRoutes = require('./backend/routes/materials.routes');
 const teachersRoutes = require('./backend/routes/teachers.routes');
 const reviewsRoutes = require('./backend/routes/reviews.routes');
 const classesRoutes = require('./backend/routes/classes.routes');
+const paymentsRoutes = require('./backend/routes/payments.routes');
+const payhereRoutes  = require('./backend/routes/payhere.routes');
 const path = require('path');
 
 
@@ -29,6 +31,8 @@ app.use('/api/materials', materialsRoutes);
 app.use('/api/teachers', teachersRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/classes', classesRoutes);
+app.use('/api/payments', paymentsRoutes);
+app.use('/api/payments/payhere', payhereRoutes);
 
 // Serve uploaded materials so the frontend can open View links.
 const uploadsMaterialsPath = path.join(__dirname, 'uploads', 'materials');
