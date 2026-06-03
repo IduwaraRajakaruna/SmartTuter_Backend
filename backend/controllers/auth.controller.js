@@ -39,7 +39,7 @@ exports.register = async (req, res) => {
 
         const existingUser = await User.findOne({ email });
 
-        if(existingUser){
+        if (existingUser) {
             return res.status(400).json({
                 message: "User already exists"
             });
@@ -93,7 +93,7 @@ exports.register = async (req, res) => {
             }
         });
 
-    } catch(error) {
+    } catch (error) {
 
         res.status(500).json({
             message: error.message
@@ -111,7 +111,7 @@ exports.login = async (req, res) => {
 
         const user = await User.findOne({ email });
 
-        if(!user){
+        if (!user) {
             return res.status(400).json({
                 message: "Invalid email"
             });
@@ -122,7 +122,7 @@ exports.login = async (req, res) => {
             user.password
         );
 
-        if(!isMatch){
+        if (!isMatch) {
             return res.status(400).json({
                 message: "Invalid password"
             });
@@ -184,7 +184,7 @@ exports.login = async (req, res) => {
             }
         });
 
-    } catch(error) {
+    } catch (error) {
 
         res.status(500).json({
             message: error.message

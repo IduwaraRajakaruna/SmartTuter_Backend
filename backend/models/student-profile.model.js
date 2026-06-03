@@ -12,6 +12,9 @@ const studentProfileSchema = new mongoose.Schema(
     phone: {
         type: String
     }
+    // Enrollment is NOT tracked here.
+    // Payment (status: "completed") is the single source of truth for enrollment.
+    // To check if a student is enrolled in a class, query Payment by studentId + classId + status.
 },
 {
     timestamps: true
